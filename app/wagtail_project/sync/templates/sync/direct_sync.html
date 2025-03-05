@@ -1,44 +1,77 @@
-{% extends "base.html" %}
-{% load static %}
+{% extends "wagtailadmin/base.html" %}
+{% load i18n %}
 
-{% block title %}Direct Sync{% endblock %}
+{% block titletag %}{% trans "Direct Sync" %}{% endblock %}
 
 {% block content %}
-  <div class="sync-dashboard">
-    <h1>Direct Sync</h1>
-    <p>Current instance: <strong>{{ instance_type|upper }}</strong></p>
-    
-    <div class="actions-panel">
-      <h2>Direct Sync Actions</h2>
-      
-      <div class="message warning">
-        <p>This will use a simpler syncing method that exports content to files, which can then be imported on the target instance.</p>
-      </div>
-      
-      <div class="action-buttons">
-        <form action="{% url 'sync:direct_sync' %}" method="post">
-          {% csrf_token %}
-          <button type="submit" class="button button-primary">Export Content</button>
-        </form>
+    <header class="nice-padding">
+        <div class="row">
+            <div class="left">
+                <h1 class="icon icon-cogs">{% trans "Direct Sync" %}</h1>
+            </div>
+        </div>
+    </header>
+
+    <div class="nice-padding">
+        <div class="help-block help-info">
+            <p>
+                {% if instance_type == 'production' %}
+                    You are currently on the <strong>production</strong> instance.
+                    You can either:
+                    <ul>
+                        <li>Import content that was previously exported from the development instance</li>
+                        <li>Export content to be imported into the development instance</li>
+                    </ul>
+                {% else %}
+                    You are currently on the <strong>development</strong> instance.
+                    You can either:
+                    <ul>
+                        <li>Import content that was previously exported from the production instance</li>
+                        <li>Export content to be imported into the production instance</li>
+                    </ul>
+                {% endif %}
+            </p>
+        </div>
+
+        <div class="help-block help-warning">
+            <p>
+                <strong>Warning:</strong> This operation will sync content between instances.
+                Make sure you understand what content will be affected before proceeding.
+            </p>
+        </div>
+
+        <div class="actions">
+            <form action="{% url 'sync:direct_sync' %}" method="post" style="display: inline-block; margin-right: 10px;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="export">
+                <button type="submit" class="button serious">{% trans "Export Content" %}</button>
+            </form>
+            
+            <form action="{% url 'sync:direct_sync' %}" method="post" style="display: inline-block;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="import">
+                <button type="submit" class="button">{% trans "Import Content" %}</button>
+            </form>
+            
+            <a href="{% url 'sync:dashboard' %}" class="button button-secondary" style="margin-left: 10px;">{% trans "Cancel" %}</a>
+        </div>
+
+        <div class="help-block help-info" style="margin-top: 20px;">
+            <h3>How the File-Based Sync Works</h3>
+            <p>This sync method uses a file-based approach to transfer content between instances:</p>
+            <ol>
+                <li>On the source instance, click "Export Content" to export content to a JSON file</li>
+                <li>On the target instance, click "Import Content" to import the content from the JSON file</li>
+            </ol>
+            <p>The JSON file is stored in the shared volume between containers, so you don't need to manually transfer files.</p>
+        </div>
         
-        <form action="{% url 'sync:dashboard' %}" method="get">
-          <button type="submit" class="button button-secondary">Back to Dashboard</button>
-        </form>
-      </div>
+        <div class="help-block help-info">
+            <h3>Command Line Alternative</h3>
+            <p>You can also use the management command to export/import content:</p>
+            <pre>python manage.py direct_sync</pre>
+            <p>To import content:</p>
+            <pre>python manage.py direct_sync --import</pre>
+        </div>
     </div>
-    
-    <div class="instructions-panel">
-      <h2>Instructions</h2>
-      
-      <ol>
-        <li>Click the "Export Content" button on the source instance</li>
-        <li>Wait for the export to complete</li>
-        <li>On the target instance, run the following command in the terminal:</li>
-        <pre>docker compose exec wagtail-prod python manage.py import_test_content</pre>
-        <li>Check that the content has been imported successfully on the target instance</li>
-      </ol>
-      
-      <p>This is a simplified approach that sidesteps the API-based synchronization which might be experiencing connectivity issues.</p>
-    </div>
-  </div>
 {% endblock %}

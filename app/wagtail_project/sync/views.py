@@ -82,11 +82,6 @@ def receive_sync(request):
     print(f"Request content type: {request.content_type}")
     print(f"Request headers: {dict(request.headers)}")
     
-    # Check if this is the target instance
-    if settings.INSTANCE_TYPE == 'development' and False:  # Temporarily disabled this check
-        print("Cannot sync to development instance")
-        return JsonResponse({'error': 'Cannot sync to development instance'}, status=400)
-    
     # Process the sync data
     try:
         # Make sure we have a request body
@@ -96,15 +91,18 @@ def receive_sync(request):
         
         try:
             # Try to parse the JSON data
-            print(f"Request body (first 200 chars): {request.body[:200]}")
+            print(f"Request body (first 500 chars): {request.body[:500]}")
             data = json.loads(request.body)
             print(f"Parsed data keys: {data.keys() if data else 'None'}")
+            print(f"Sync type: {data.get('sync_type')}")
+            print(f"Source instance: {data.get('source_instance')}")
+            print(f"Pages count: {len(data.get('pages', []))}")
         except json.JSONDecodeError as e:
             print(f"JSON decode error: {str(e)}")
             return JsonResponse({'error': f'Invalid JSON: {str(e)}'}, status=400)
         
         sync_type = data.get('sync_type')
-        print(f"Sync type: {sync_type}")
+        print(f"Processing sync type: {sync_type}")
         
         if sync_type == 'full':
             # Import the full database
@@ -113,7 +111,68 @@ def receive_sync(request):
         elif sync_type == 'content':
             # Import content
             print("Importing content")
-            call_command('import_content', sync_data=data)
+            try:
+                print("Calling import_content command directly")
+                # Create a simple test script to debug
+                test_script = f"""
+import os
+import sys
+import json
+
+# Add the current directory to the Python path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+# Set up Django environment
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', '{settings.DJANGO_SETTINGS_MODULE}')
+
+import django
+django.setup()
+
+from django.core.management import call_command
+
+def test_receive():
+    print("Testing receive process...")
+    
+    # Use the received data
+    test_data = {json.dumps(data)}
+    
+    try:
+        print("Calling import_content command...")
+        call_command('import_content', sync_data={data})
+        print("Command completed successfully")
+    except Exception as e:
+        print(f"Error: {{str(e)}}")
+        import traceback
+        traceback.print_exc()
+
+if __name__ == '__main__':
+    test_receive()
+                """
+                
+                # Write the test script to a temporary file
+                import tempfile
+                with tempfile.NamedTemporaryFile(suffix='.py', delete=False) as f:
+                    f.write(test_script.encode('utf-8'))
+                    temp_script = f.name
+                
+                # Execute the test script
+                import subprocess
+                result = subprocess.run(['python', temp_script], capture_output=True, text=True)
+                print(f"Script output: {result.stdout}")
+                print(f"Script error: {result.stderr}")
+                
+                # Clean up
+                os.unlink(temp_script)
+                
+                # If the script was successful, return success
+                if "Command completed successfully" in result.stdout:
+                    return JsonResponse({'status': 'success'})
+                else:
+                    return JsonResponse({'error': 'Error in import_content command'}, status=500)
+            except Exception as cmd_error:
+                print(f"Error in import_content command: {str(cmd_error)}")
+                traceback.print_exc()
+                return JsonResponse({'error': f'Command error: {str(cmd_error)}'}, status=500)
         elif sync_type == 'media':
             # Import media
             print("Importing media")
@@ -149,6 +208,8 @@ def sync_log_detail(request, log_id):
 def direct_sync(request):
     """Direct sync method using management commands."""
     if request.method == 'POST':
+        action = request.POST.get('action', 'export')
+        
         # Create a new sync log
         sync_log = SyncLog.objects.create(
             sync_type='content',
@@ -158,23 +219,14 @@ def direct_sync(request):
         )
         
         try:
-            # Export the content
-            call_command('sync_test_content')
+            if action == 'export':
+                # Export content
+                call_command('direct_sync')
+            else:
+                # Import content
+                call_command('direct_sync', import_mode=True)
             
-            # Update the sync log
-            sync_log.status = 'completed'
-            sync_log.completed_at = timezone.now()
-            sync_log.message = 'Content exported successfully. Please run import_test_content on the target instance.'
-            sync_log.save()
-            
-            # Add model statistics
-            SyncedModel.objects.create(
-                sync_log=sync_log,
-                model_name='Pages',
-                synced_items=5,
-                skipped_items=0
-            )
-            
+            # The direct_sync command will update the sync log, so we don't need to do it here
             return redirect('sync:dashboard')
         except Exception as e:
             # Update sync log with error

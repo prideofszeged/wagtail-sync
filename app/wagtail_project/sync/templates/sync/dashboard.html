@@ -27,11 +27,12 @@
             <button type="submit" class="button">Sync Media Files to Production</button>
           </form>
           
-          <a href="{% url 'sync:direct_sync' %}" class="button button-secondary">Use Alternative Sync Method</a>
+          <a href="{% url 'sync:direct_sync' %}" class="button button-secondary">Use File-Based Sync Method</a>
         </div>
       {% else %}
         <div class="message warning">
-          <p>Sync operations can only be initiated from the development instance.</p>
+          <p>API-based sync operations can only be initiated from the development instance.</p>
+          <p>However, you can use the <a href="{% url 'sync:direct_sync' %}" class="button button-small">File-Based Sync Method</a> to import or export content.</p>
         </div>
       {% endif %}
     </div>
@@ -73,6 +74,18 @@
       {% else %}
         <p>No sync operations have been performed yet.</p>
       {% endif %}
+    </div>
+
+    <div class="help-block help-info">
+        <h3>Command Line Sync</h3>
+        <p>You can also use the management command to sync content between instances:</p>
+        <pre>python manage.py sync_content</pre>
+        <p>This command will automatically detect the current instance and sync to the other instance.</p>
+        <p>Options:</p>
+        <ul>
+            <li><code>--target</code>: Specify the target instance (production or development)</li>
+            <li><code>--page-ids</code>: Specify specific page IDs to sync</li>
+        </ul>
     </div>
   </div>
 {% endblock %}
