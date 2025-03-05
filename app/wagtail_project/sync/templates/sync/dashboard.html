@@ -26,6 +26,8 @@
             <input type="hidden" name="sync_type" value="media">
             <button type="submit" class="button">Sync Media Files to Production</button>
           </form>
+          
+          <a href="{% url 'sync:direct_sync' %}" class="button button-secondary">Use Alternative Sync Method</a>
         </div>
       {% else %}
         <div class="message warning">

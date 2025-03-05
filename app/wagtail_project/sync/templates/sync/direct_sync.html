@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Direct Sync{% endblock %}
+
+{% block content %}
+  <div class="sync-dashboard">
+    <h1>Direct Sync</h1>
+    <p>Current instance: <strong>{{ instance_type|upper }}</strong></p>
+    
+    <div class="actions-panel">
+      <h2>Direct Sync Actions</h2>
+      
+      <div class="message warning">
+        <p>This will use a simpler syncing method that exports content to files, which can then be imported on the target instance.</p>
+      </div>
+      
+      <div class="action-buttons">
+        <form action="{% url 'sync:direct_sync' %}" method="post">
+          {% csrf_token %}
+          <button type="submit" class="button button-primary">Export Content</button>
+        </form>
+        
+        <form action="{% url 'sync:dashboard' %}" method="get">
+          <button type="submit" class="button button-secondary">Back to Dashboard</button>
+        </form>
+      </div>
+    </div>
+    
+    <div class="instructions-panel">
+      <h2>Instructions</h2>
+      
+      <ol>
+        <li>Click the "Export Content" button on the source instance</li>
+        <li>Wait for the export to complete</li>
+        <li>On the target instance, run the following command in the terminal:</li>
+        <pre>docker compose exec wagtail-prod python manage.py import_test_content</pre>
+        <li>Check that the content has been imported successfully on the target instance</li>
+      </ol>
+      
+      <p>This is a simplified approach that sidesteps the API-based synchronization which might be experiencing connectivity issues.</p>
+    </div>
+  </div>
+{% endblock %}

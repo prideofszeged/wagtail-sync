@@ -1,6 +1,6 @@
 from .base import *
 
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-dev-key-for-development-only')

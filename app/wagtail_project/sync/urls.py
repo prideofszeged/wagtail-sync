@@ -9,4 +9,5 @@ urlpatterns = [
     path('trigger/', views.trigger_sync, name='trigger'),
     path('receive/', views.receive_sync, name='receive'),
     path('log/<int:log_id>/', views.sync_log_detail, name='log_detail'),
+    path('direct-sync/', views.direct_sync, name='direct_sync'),
 ]

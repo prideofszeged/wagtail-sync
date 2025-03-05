@@ -140,3 +140,7 @@ WAGTAILADMIN_BASE_URL = 'http://localhost:8000'
 
 # Instance type (production or development)
 INSTANCE_TYPE = os.getenv('INSTANCE_TYPE', 'development')
+
+# Login redirect settings
+LOGIN_URL = '/admin/login/'
+LOGIN_REDIRECT_URL = '/admin/'

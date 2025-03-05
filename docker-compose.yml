@@ -14,7 +14,7 @@ services:
       - DJANGO_SETTINGS_MODULE=wagtail_project.settings.production
       - DATABASE_URL=mysql://wagtail:wagtailpassword@db-prod:3306/wagtail_prod
       - SECRET_KEY=django-insecure-prod-key-change-me-in-production
-      - ALLOWED_HOSTS=localhost,127.0.0.1
+      - ALLOWED_HOSTS=localhost,127.0.0.1,wagtail-dev
       - WAGTAIL_SITE_NAME=Wagtail Prod
       - INSTANCE_TYPE=production
       - DJANGO_SUPERUSER_PASSWORD=admin

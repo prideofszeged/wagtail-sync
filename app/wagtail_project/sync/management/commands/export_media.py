@@ -124,12 +124,21 @@ class Command(BaseCommand):
             self.stdout.write(self.style.NOTICE('Sending media data to production instance...'))
             target_url = 'http://wagtail-prod:8000/sync/receive/' if settings.INSTANCE_TYPE == 'development' else 'http://wagtail-dev:8000/sync/receive/'
             
+            self.stdout.write(self.style.NOTICE(f'Target URL: {target_url}'))
+            
             response = requests.post(
                 target_url,
                 json=sync_data,
-                headers={'Content-Type': 'application/json'},
+                headers={
+                    'Content-Type': 'application/json',
+                    'Host': 'wagtail-prod' if settings.INSTANCE_TYPE == 'development' else 'wagtail-dev',
+                    'X-Sync-Source': settings.INSTANCE_TYPE
+                },
                 timeout=600  # 10 minute timeout for large data transfers
             )
+            
+            self.stdout.write(self.style.NOTICE(f'Response status: {response.status_code}'))
+            self.stdout.write(self.style.NOTICE(f'Response text: {response.text}'))
             
             if response.status_code == 200:
                 # Update sync log
