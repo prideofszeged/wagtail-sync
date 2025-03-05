@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Sync Content{% endblock %}
+
+{% block content %}
+  <div class="sync-content-form">
+    <h1>Sync Selected Content</h1>
+    <p>Current instance: <strong>{{ instance_type|upper }}</strong></p>
+    
+    {% if instance_type == 'development' %}
+      <form action="{% url 'sync:trigger' %}" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="sync_type" value="content">
+        
+        <div class="page-selection">
+          <h2>Select Pages to Sync</h2>
+          
+          {% if pages %}
+            <table class="listing">
+              <thead>
+                <tr>
+                  <th class="select">
+                    <input type="checkbox" id="select-all">
+                  </th>
+                  <th>Title</th>
+                  <th>Type</th>
+                  <th>URL</th>
+                  <th>Last updated</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for page in pages %}
+                  <tr>
+                    <td class="select">
+                      <input type="checkbox" name="page_ids" value="{{ page.id }}" class="page-checkbox">
+                    </td>
+                    <td>{{ page.title }}</td>
+                    <td>{{ page.specific_class.get_verbose_name }}</td>
+                    <td>{{ page.url }}</td>
+                    <td>{{ page.last_published_at|default:"-" }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <p>No pages found to sync.</p>
+          {% endif %}
+        </div>
+        
+        <div class="actions">
+          <button type="submit" class="button button-primary">Sync Selected Content to Production</button>
+          <a href="{% url 'sync:dashboard' %}" class="button button-secondary">Cancel</a>
+        </div>
+      </form>
+    {% else %}
+      <div class="message warning">
+        <p>Sync operations can only be initiated from the development instance.</p>
+        <a href="{% url 'sync:dashboard' %}" class="button">Back to Dashboard</a>
+      </div>
+    {% endif %}
+  </div>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Handle "Select All" checkbox
+      const selectAll = document.getElementById('select-all');
+      const pageCheckboxes = document.querySelectorAll('.page-checkbox');
+      
+      if (selectAll) {
+        selectAll.addEventListener('change', function() {
+          pageCheckboxes.forEach(checkbox => {
+            checkbox.checked = selectAll.checked;
+          });
+        });
+      }
+    });
+  </script>
+{% endblock %}

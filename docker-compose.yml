@@ -1,0 +1,102 @@
+version: '3.8'
+
+services:
+  # Production Wagtail instance
+  wagtail-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db-prod:
+        condition: service_healthy
+    environment:
+      - DJANGO_SETTINGS_MODULE=wagtail_project.settings.production
+      - DATABASE_URL=mysql://wagtail:wagtailpassword@db-prod:3306/wagtail_prod
+      - SECRET_KEY=django-insecure-prod-key-change-me-in-production
+      - ALLOWED_HOSTS=localhost,127.0.0.1
+      - WAGTAIL_SITE_NAME=Wagtail Prod
+      - INSTANCE_TYPE=production
+      - DJANGO_SUPERUSER_PASSWORD=admin
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/app
+      - prod-media:/app/media
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py createsuperuser --noinput --username admin --email admin@example.com || true &&
+             python manage.py runserver 0.0.0.0:8000"
+
+  # Development Wagtail instance
+  wagtail-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db-dev:
+        condition: service_healthy
+    environment:
+      - DJANGO_SETTINGS_MODULE=wagtail_project.settings.development
+      - DATABASE_URL=mysql://wagtail:wagtailpassword@db-dev:3306/wagtail_dev
+      - SECRET_KEY=django-insecure-dev-key-for-development-only
+      - ALLOWED_HOSTS=localhost,127.0.0.1
+      - WAGTAIL_SITE_NAME=Wagtail Dev
+      - INSTANCE_TYPE=development
+      - DJANGO_SUPERUSER_PASSWORD=admin
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./app:/app
+      - dev-media:/app/media
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py createsuperuser --noinput --username admin --email admin@example.com || true &&
+             python manage.py runserver 0.0.0.0:8000"
+
+  # Production MySQL database
+  db-prod:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      - MYSQL_DATABASE=wagtail_prod
+      - MYSQL_USER=wagtail
+      - MYSQL_PASSWORD=wagtailpassword
+      - MYSQL_ROOT_PASSWORD=rootpassword
+    volumes:
+      - mysql-prod-data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "wagtail", "-pwagtailpassword"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Development MySQL database
+  db-dev:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      - MYSQL_DATABASE=wagtail_dev
+      - MYSQL_USER=wagtail
+      - MYSQL_PASSWORD=wagtailpassword
+      - MYSQL_ROOT_PASSWORD=rootpassword
+    volumes:
+      - mysql-dev-data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
+    ports:
+      - "3307:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "wagtail", "-pwagtailpassword"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mysql-prod-data:
+  mysql-dev-data:
+  prod-media:
+  dev-media:

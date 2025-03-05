@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Sync Dashboard{% endblock %}
+
+{% block content %}
+  <div class="sync-dashboard">
+    <h1>Wagtail Sync Dashboard</h1>
+    <p>Current instance: <strong>{{ instance_type|upper }}</strong></p>
+    
+    <div class="actions-panel">
+      <h2>Sync Actions</h2>
+      
+      {% if instance_type == 'development' %}
+        <div class="action-buttons">
+          <form action="{% url 'sync:trigger' %}" method="post">
+            {% csrf_token %}
+            <input type="hidden" name="sync_type" value="full">
+            <button type="submit" class="button button-primary">Sync Full Database to Production</button>
+          </form>
+          
+          <a href="{% url 'sync:content_form' %}" class="button">Sync Selected Content to Production</a>
+          
+          <form action="{% url 'sync:trigger' %}" method="post">
+            {% csrf_token %}
+            <input type="hidden" name="sync_type" value="media">
+            <button type="submit" class="button">Sync Media Files to Production</button>
+          </form>
+        </div>
+      {% else %}
+        <div class="message warning">
+          <p>Sync operations can only be initiated from the development instance.</p>
+        </div>
+      {% endif %}
+    </div>
+    
+    <div class="logs-panel">
+      <h2>Recent Sync Logs</h2>
+      
+      {% if logs %}
+        <table class="listing">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Type</th>
+              <th>From</th>
+              <th>To</th>
+              <th>Status</th>
+              <th>Started</th>
+              <th>Completed</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for log in logs %}
+              <tr>
+                <td>{{ log.id }}</td>
+                <td>{{ log.get_sync_type_display }}</td>
+                <td>{{ log.source_instance }}</td>
+                <td>{{ log.target_instance }}</td>
+                <td class="status status-{{ log.status }}">{{ log.get_status_display }}</td>
+                <td>{{ log.started_at }}</td>
+                <td>{{ log.completed_at|default:"-" }}</td>
+                <td>
+                  <a href="{% url 'sync:log_detail' log.id %}" class="button button-small">View Details</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p>No sync operations have been performed yet.</p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

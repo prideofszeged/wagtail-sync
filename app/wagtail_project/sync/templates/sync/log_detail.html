@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Sync Log Detail{% endblock %}
+
+{% block content %}
+  <div class="sync-log-detail">
+    <h1>Sync Log Detail</h1>
+    
+    <div class="log-header">
+      <div class="log-meta">
+        <p><strong>ID:</strong> {{ log.id }}</p>
+        <p><strong>Type:</strong> {{ log.get_sync_type_display }}</p>
+        <p><strong>From:</strong> {{ log.source_instance }}</p>
+        <p><strong>To:</strong> {{ log.target_instance }}</p>
+        <p><strong>Status:</strong> <span class="status status-{{ log.status }}">{{ log.get_status_display }}</span></p>
+        <p><strong>Started:</strong> {{ log.started_at }}</p>
+        <p><strong>Completed:</strong> {{ log.completed_at|default:"-" }}</p>
+      </div>
+      
+      {% if log.message %}
+        <div class="log-message">
+          <h3>Message</h3>
+          <div class="message-content">
+            {{ log.message|linebreaks }}
+          </div>
+        </div>
+      {% endif %}
+    </div>
+    
+    <div class="synced-models">
+      <h2>Synced Content</h2>
+      
+      {% if synced_models %}
+        <table class="listing">
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th>Items Synced</th>
+              <th>Items Skipped</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for model in synced_models %}
+              <tr>
+                <td>{{ model.model_name }}</td>
+                <td>{{ model.synced_items }}</td>
+                <td>{{ model.skipped_items }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p>No models were synced in this operation.</p>
+      {% endif %}
+    </div>
+    
+    <div class="actions">
+      <a href="{% url 'sync:dashboard' %}" class="button button-secondary">Back to Dashboard</a>
+    </div>
+  </div>
+{% endblock %}
