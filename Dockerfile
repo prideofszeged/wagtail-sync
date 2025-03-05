@@ -23,6 +23,9 @@ RUN pip install -r requirements.txt
 # Copy project files
 COPY ./app /app/
 
+# Create directories for static files and media
+RUN mkdir -p /app/staticfiles /app/media
+
 # Create a non-root user to run the application
 RUN useradd -m wagtail && chown -R wagtail:wagtail /app
 USER wagtail

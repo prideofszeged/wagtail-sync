@@ -23,8 +23,10 @@ services:
     volumes:
       - ./app:/app
       - prod-media:/app/media
+      - prod-static:/app/staticfiles
     command: >
       sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
              python manage.py createsuperuser --noinput --username admin --email admin@example.com || true &&
              python manage.py runserver 0.0.0.0:8000"
 
@@ -50,8 +52,10 @@ services:
     volumes:
       - ./app:/app
       - dev-media:/app/media
+      - dev-static:/app/staticfiles
     command: >
       sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
              python manage.py createsuperuser --noinput --username admin --email admin@example.com || true &&
              python manage.py runserver 0.0.0.0:8000"
 
@@ -100,3 +104,5 @@ volumes:
   mysql-dev-data:
   prod-media:
   dev-media:
+  prod-static:
+  dev-static:
