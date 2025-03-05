@@ -1,15 +1,20 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Sync Content{% endblock %}
+{% block title %}Sync Selected Content{% endblock %}
 
 {% block content %}
   <div class="sync-content-form">
+    <div class="admin-link">
+      <a href="{% url 'wagtailadmin_home' %}" class="button button-secondary">← Back to Admin</a>
+      <a href="{% url 'sync:dashboard' %}" class="button button-secondary">← Back to Sync Dashboard</a>
+    </div>
+    
     <h1>Sync Selected Content</h1>
     <p>Current instance: <strong>{{ instance_type|upper }}</strong></p>
     
-    {% if instance_type == 'development' %}
-      <form action="{% url 'sync:trigger' %}" method="post">
+    {% if instance_type == 'development' or instance_type == 'production' %}
+      <form action="{% url 'sync:file_sync_content' %}" method="post">
         {% csrf_token %}
         <input type="hidden" name="sync_type" value="content">
         
@@ -49,13 +54,23 @@
         </div>
         
         <div class="actions">
-          <button type="submit" class="button button-primary">Sync Selected Content to Production</button>
+          <button type="submit" class="button button-primary">Export Selected Content</button>
           <a href="{% url 'sync:dashboard' %}" class="button button-secondary">Cancel</a>
         </div>
       </form>
+      
+      <div class="help-block help-info" style="margin-top: 20px;">
+        <h3>How to Sync Selected Content</h3>
+        <ol>
+          <li>Select the pages you want to sync</li>
+          <li>Click "Export Selected Content" to export them to a file</li>
+          <li>Go to the other instance and use the "Import Content" button on the Direct Sync page to import the content</li>
+        </ol>
+        <p>This uses the more reliable file-based sync method instead of the API-based approach.</p>
+      </div>
     {% else %}
       <div class="message warning">
-        <p>Sync operations can only be initiated from the development instance.</p>
+        <p>Unable to determine instance type.</p>
         <a href="{% url 'sync:dashboard' %}" class="button">Back to Dashboard</a>
       </div>
     {% endif %}

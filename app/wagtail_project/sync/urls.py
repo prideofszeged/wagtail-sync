@@ -10,4 +10,5 @@ urlpatterns = [
     path('receive/', views.receive_sync, name='receive'),
     path('log/<int:log_id>/', views.sync_log_detail, name='log_detail'),
     path('direct-sync/', views.direct_sync, name='direct_sync'),
+    path('file-sync-content/', views.file_sync_content, name='file_sync_content'),
 ]

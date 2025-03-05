@@ -15,9 +15,21 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument('--sync-data', type=dict, help='JSON data to import as a dictionary')
+        parser.add_argument('--file-path', type=str, help='Path to JSON file containing sync data')
 
     def handle(self, *args, **options):
         sync_data = options.get('sync_data')
+        file_path = options.get('file_path')
+        
+        # Load data from file if provided
+        if file_path and not sync_data:
+            try:
+                with open(file_path, 'r') as f:
+                    sync_data = json.load(f)
+                self.stdout.write(self.style.SUCCESS(f'Loaded sync data from file: {file_path}'))
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f'Error loading sync data from file: {str(e)}'))
+                return
         
         if not sync_data:
             self.stdout.write(self.style.ERROR('No sync data provided'))
@@ -27,7 +39,7 @@ class Command(BaseCommand):
         sync_log = SyncLog.objects.create(
             sync_type='content',
             source_instance=sync_data.get('source_instance', 'unknown'),
-            target_instance='current',
+            target_instance=settings.INSTANCE_TYPE,
             status='in_progress'
         )
         
@@ -58,6 +70,8 @@ class Command(BaseCommand):
                         page_path = page_data.get('path')
                         page_depth = page_data.get('depth')
                         page_body = page_data.get('body')
+                        
+                        self.stdout.write(f'Processing page: {page_title} (ID: {page_id}, Type: {page_content_type})')
                         
                         # Check if page already exists
                         try:

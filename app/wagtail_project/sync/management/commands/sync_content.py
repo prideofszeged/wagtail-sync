@@ -73,37 +73,50 @@ class Command(BaseCommand):
             
             # Send data to target instance
             self.stdout.write(self.style.SUCCESS(f'Sending data to {target_url}...'))
-            response = requests.post(
-                target_url,
-                json=sync_data,
-                headers={'Content-Type': 'application/json'}
-            )
             
-            # Check response
-            if response.status_code == 200:
-                # Update sync log
-                sync_log.status = 'completed'
-                sync_log.completed_at = timezone.now()
-                sync_log.message = f'Successfully synced {len(pages)} pages to {target}'
-                sync_log.save()
-                
-                # Add synced model statistics
-                SyncedModel.objects.create(
-                    sync_log=sync_log,
-                    model_name='Pages',
-                    synced_items=len(pages),
-                    skipped_items=0
+            try:
+                response = requests.post(
+                    target_url,
+                    json=sync_data,
+                    headers={'Content-Type': 'application/json'}
                 )
                 
-                self.stdout.write(self.style.SUCCESS(f'Successfully synced {len(pages)} pages to {target}'))
-            else:
+                # Check response
+                self.stdout.write(self.style.SUCCESS(f'Response status: {response.status_code}'))
+                self.stdout.write(self.style.SUCCESS(f'Response text: {response.text}'))
+                
+                if response.status_code == 200:
+                    # Update sync log
+                    sync_log.status = 'completed'
+                    sync_log.completed_at = timezone.now()
+                    sync_log.message = f'Successfully synced {len(pages)} pages to {target}'
+                    sync_log.save()
+                    
+                    # Add synced model statistics
+                    SyncedModel.objects.create(
+                        sync_log=sync_log,
+                        model_name='Pages',
+                        synced_items=len(pages),
+                        skipped_items=0
+                    )
+                    
+                    self.stdout.write(self.style.SUCCESS(f'Successfully synced {len(pages)} pages to {target}'))
+                else:
+                    # Update sync log with error
+                    sync_log.status = 'failed'
+                    sync_log.completed_at = timezone.now()
+                    sync_log.message = f'Error from {target} instance: {response.text}'
+                    sync_log.save()
+                    
+                    self.stdout.write(self.style.ERROR(f'Error from {target} instance: {response.text}'))
+            except requests.exceptions.RequestException as e:
                 # Update sync log with error
                 sync_log.status = 'failed'
                 sync_log.completed_at = timezone.now()
-                sync_log.message = f'Error from target: {response.text}'
+                sync_log.message = f'Connection error: {str(e)}'
                 sync_log.save()
                 
-                self.stdout.write(self.style.ERROR(f'Error from target: {response.text}'))
+                self.stdout.write(self.style.ERROR(f'Connection error: {str(e)}'))
         
         except Exception as e:
             # Update sync log with error

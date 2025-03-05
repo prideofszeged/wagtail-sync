@@ -10,9 +10,9 @@ class Command(BaseCommand):
     help = 'Direct sync between instances using file-based approach'
 
     def add_arguments(self, parser):
-        parser.add_argument('--target', type=str, default='auto', help='Target instance (production or development)')
-        parser.add_argument('--page-ids', nargs='+', type=int, help='IDs of pages to sync')
         parser.add_argument('--import', dest='import_mode', action='store_true', help='Import mode')
+        parser.add_argument('--page-ids', nargs='+', type=int, help='IDs of pages to sync')
+        parser.add_argument('--export-file', type=str, default='sync_data.json', help='Export file name')
 
     def handle(self, *args, **options):
         import_mode = options.get('import_mode', False)
@@ -24,11 +24,9 @@ class Command(BaseCommand):
     
     def _handle_export(self, options):
         # Determine target instance
-        target = options.get('target')
-        if target == 'auto':
-            target = 'production' if settings.INSTANCE_TYPE == 'development' else 'development'
+        target = 'production' if settings.INSTANCE_TYPE == 'development' else 'development'
         
-        self.stdout.write(self.style.SUCCESS(f'Syncing content from {settings.INSTANCE_TYPE} to {target}...'))
+        self.stdout.write(self.style.SUCCESS(f'Exporting content from {settings.INSTANCE_TYPE}...'))
         
         # Create a sync log
         sync_log = SyncLog.objects.create(
@@ -43,9 +41,11 @@ class Command(BaseCommand):
             page_ids = options.get('page_ids')
             if page_ids:
                 pages = Page.objects.filter(id__in=page_ids).specific()
+                self.stdout.write(self.style.SUCCESS(f'Exporting {len(pages)} selected pages...'))
             else:
                 # Get all pages except root
                 pages = Page.objects.filter(depth__gt=1).specific()
+                self.stdout.write(self.style.SUCCESS(f'Exporting all pages ({len(pages)} pages)...'))
             
             # Prepare data for sync
             sync_data = {
@@ -73,18 +73,21 @@ class Command(BaseCommand):
                 
                 sync_data['pages'].append(page_data)
             
-            # Write data to a file
+            # Ensure export directory exists
             export_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'export')
             os.makedirs(export_dir, exist_ok=True)
-            export_file = os.path.join(export_dir, 'sync_data.json')
             
-            with open(export_file, 'w') as f:
-                json.dump(sync_data, f)
+            # Write data to file
+            export_file = options.get('export_file', 'sync_data.json')
+            export_path = os.path.join(export_dir, export_file)
+            
+            with open(export_path, 'w') as f:
+                json.dump(sync_data, f, indent=2)
             
             # Update sync log
             sync_log.status = 'completed'
             sync_log.completed_at = timezone.now()
-            sync_log.message = f'Successfully exported {len(pages)} pages to {export_file}'
+            sync_log.message = f'Successfully exported {len(pages)} pages to {export_path}'
             sync_log.save()
             
             # Add synced model statistics
@@ -95,9 +98,7 @@ class Command(BaseCommand):
                 skipped_items=0
             )
             
-            self.stdout.write(self.style.SUCCESS(f'Successfully exported {len(pages)} pages to {export_file}'))
-            self.stdout.write(self.style.SUCCESS(f'To import this data on the {target} instance, run:'))
-            self.stdout.write(self.style.NOTICE(f'python manage.py direct_sync --import'))
+            self.stdout.write(self.style.SUCCESS(f'Successfully exported {len(pages)} pages to {export_path}'))
         
         except Exception as e:
             # Update sync log with error
@@ -122,24 +123,24 @@ class Command(BaseCommand):
         try:
             # Find the export file
             export_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'export')
-            export_file = os.path.join(export_dir, 'sync_data.json')
+            export_path = os.path.join(export_dir, 'sync_data.json')
             
-            if not os.path.exists(export_file):
-                raise Exception(f'Export file not found: {export_file}')
+            if not os.path.exists(export_path):
+                raise FileNotFoundError(f'Export file not found: {export_path}')
             
-            # Load the sync data
-            with open(export_file, 'r') as f:
+            # Read data from file
+            with open(export_path, 'r') as f:
                 sync_data = json.load(f)
             
-            # Import the content
+            # Import content
             from wagtail_project.sync.management.commands.import_content import Command
             cmd = Command()
             cmd.handle(sync_data=sync_data)
             
-            # Update the sync log
+            # Update sync log
             sync_log.status = 'completed'
             sync_log.completed_at = timezone.now()
-            sync_log.message = f'Successfully imported {len(sync_data.get("pages", []))} pages from {export_file}'
+            sync_log.message = f'Successfully imported {len(sync_data.get("pages", []))} pages from {export_path}'
             sync_log.save()
             
             # Add synced model statistics
@@ -150,7 +151,7 @@ class Command(BaseCommand):
                 skipped_items=0
             )
             
-            self.stdout.write(self.style.SUCCESS(f'Successfully imported {len(sync_data.get("pages", []))} pages from {export_file}'))
+            self.stdout.write(self.style.SUCCESS(f'Successfully imported {len(sync_data.get("pages", []))} pages from {export_path}'))
         
         except Exception as e:
             # Update sync log with error

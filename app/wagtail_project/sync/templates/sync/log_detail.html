@@ -5,6 +5,11 @@
 
 {% block content %}
   <div class="sync-log-detail">
+    <div class="admin-link">
+      <a href="{% url 'wagtailadmin_home' %}" class="button button-secondary">← Back to Admin</a>
+      <a href="{% url 'sync:dashboard' %}" class="button button-secondary">← Back to Sync Dashboard</a>
+    </div>
+    
     <h1>Sync Log Detail</h1>
     
     <div class="log-header">

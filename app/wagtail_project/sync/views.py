@@ -74,6 +74,7 @@ def receive_sync(request):
     """API endpoint to receive sync data."""
     import sys
     import traceback
+    import tempfile
     
     print("==== SYNC RECEIVE DEBUG INFO ====")
     print(f"Instance type: {settings.INSTANCE_TYPE}")
@@ -82,11 +83,23 @@ def receive_sync(request):
     print(f"Request content type: {request.content_type}")
     print(f"Request headers: {dict(request.headers)}")
     
+    # Create a sync log at the beginning
+    sync_log = SyncLog.objects.create(
+        sync_type='content',  # Default, will be updated
+        source_instance='unknown',  # Will be updated
+        target_instance=settings.INSTANCE_TYPE,
+        status='in_progress'
+    )
+    
     # Process the sync data
     try:
         # Make sure we have a request body
         if not request.body:
             print("No request body received")
+            sync_log.status = 'failed'
+            sync_log.completed_at = timezone.now()
+            sync_log.message = 'No data received'
+            sync_log.save()
             return JsonResponse({'error': 'No data received'}, status=400)
         
         try:
@@ -94,100 +107,121 @@ def receive_sync(request):
             print(f"Request body (first 500 chars): {request.body[:500]}")
             data = json.loads(request.body)
             print(f"Parsed data keys: {data.keys() if data else 'None'}")
-            print(f"Sync type: {data.get('sync_type')}")
-            print(f"Source instance: {data.get('source_instance')}")
-            print(f"Pages count: {len(data.get('pages', []))}")
         except json.JSONDecodeError as e:
             print(f"JSON decode error: {str(e)}")
+            sync_log.status = 'failed'
+            sync_log.completed_at = timezone.now()
+            sync_log.message = f'Invalid JSON: {str(e)}'
+            sync_log.save()
             return JsonResponse({'error': f'Invalid JSON: {str(e)}'}, status=400)
         
-        sync_type = data.get('sync_type')
-        print(f"Processing sync type: {sync_type}")
+        # Update sync log with actual data
+        sync_type = data.get('sync_type', 'content')
+        source_instance = data.get('source_instance', 'unknown')
         
-        if sync_type == 'full':
-            # Import the full database
-            print("Importing full database")
-            call_command('import_database', sync_data=data)
-        elif sync_type == 'content':
-            # Import content
-            print("Importing content")
-            try:
-                print("Calling import_content command directly")
-                # Create a simple test script to debug
-                test_script = f"""
-import os
-import sys
-import json
-
-# Add the current directory to the Python path
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-# Set up Django environment
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', '{settings.DJANGO_SETTINGS_MODULE}')
-
-import django
-django.setup()
-
-from django.core.management import call_command
-
-def test_receive():
-    print("Testing receive process...")
-    
-    # Use the received data
-    test_data = {json.dumps(data)}
-    
-    try:
-        print("Calling import_content command...")
-        call_command('import_content', sync_data={data})
-        print("Command completed successfully")
-    except Exception as e:
-        print(f"Error: {{str(e)}}")
-        import traceback
-        traceback.print_exc()
-
-if __name__ == '__main__':
-    test_receive()
-                """
-                
-                # Write the test script to a temporary file
-                import tempfile
-                with tempfile.NamedTemporaryFile(suffix='.py', delete=False) as f:
-                    f.write(test_script.encode('utf-8'))
-                    temp_script = f.name
-                
-                # Execute the test script
-                import subprocess
-                result = subprocess.run(['python', temp_script], capture_output=True, text=True)
-                print(f"Script output: {result.stdout}")
-                print(f"Script error: {result.stderr}")
-                
-                # Clean up
-                os.unlink(temp_script)
-                
-                # If the script was successful, return success
-                if "Command completed successfully" in result.stdout:
-                    return JsonResponse({'status': 'success'})
-                else:
-                    return JsonResponse({'error': 'Error in import_content command'}, status=500)
-            except Exception as cmd_error:
-                print(f"Error in import_content command: {str(cmd_error)}")
-                traceback.print_exc()
-                return JsonResponse({'error': f'Command error: {str(cmd_error)}'}, status=500)
-        elif sync_type == 'media':
-            # Import media
-            print("Importing media")
-            call_command('import_media', sync_data=data)
-        else:
-            print(f"Invalid sync type: {sync_type}")
-            return JsonResponse({'error': f'Invalid sync type: {sync_type}'}, status=400)
+        sync_log.sync_type = sync_type
+        sync_log.source_instance = source_instance
+        sync_log.save()
         
-        print("Sync completed successfully")
-        return JsonResponse({'status': 'success'})
+        print(f"Processing sync type: {sync_type} from {source_instance}")
+        
+        try:
+            if sync_type == 'full':
+                # Import the full database
+                print("Importing full database")
+                call_command('import_database', sync_data=data)
+                
+                # Update the sync log
+                sync_log.status = 'completed'
+                sync_log.completed_at = timezone.now()
+                sync_log.message = 'Successfully imported full database'
+                sync_log.save()
+                
+            elif sync_type == 'content':
+                # Import content
+                print("Importing content")
+                
+                # Write data to a temporary file
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp_file:
+                    json.dump(data, temp_file)
+                    temp_file_path = temp_file.name
+                
+                print(f"Wrote data to temporary file: {temp_file_path}")
+                
+                # Import the content using our import_content command
+                from wagtail_project.sync.management.commands.import_content import Command
+                cmd = Command()
+                cmd.handle(file_path=temp_file_path)
+                
+                # Clean up the temporary file
+                try:
+                    os.unlink(temp_file_path)
+                except Exception as e:
+                    print(f"Warning: Could not delete temporary file: {str(e)}")
+                
+                # Update the sync log
+                pages_count = len(data.get("pages", []))
+                sync_log.status = 'completed'
+                sync_log.completed_at = timezone.now()
+                sync_log.message = f'Successfully imported {pages_count} pages'
+                sync_log.save()
+                
+                # Add synced model statistics
+                SyncedModel.objects.create(
+                    sync_log=sync_log,
+                    model_name='Pages',
+                    synced_items=pages_count,
+                    skipped_items=0
+                )
+                
+                print("Content import completed successfully")
+                
+            elif sync_type == 'media':
+                # Import media
+                print("Importing media")
+                call_command('import_media', sync_data=data)
+                
+                # Update the sync log
+                sync_log.status = 'completed'
+                sync_log.completed_at = timezone.now()
+                sync_log.message = 'Successfully imported media files'
+                sync_log.save()
+                
+            else:
+                print(f"Invalid sync type: {sync_type}")
+                sync_log.status = 'failed'
+                sync_log.completed_at = timezone.now()
+                sync_log.message = f'Invalid sync type: {sync_type}'
+                sync_log.save()
+                return JsonResponse({'error': f'Invalid sync type: {sync_type}'}, status=400)
+            
+            print("Sync completed successfully")
+            return JsonResponse({'status': 'success'})
+            
+        except Exception as cmd_error:
+            print(f"Error in import command: {str(cmd_error)}")
+            traceback.print_exc()
+            
+            # Update sync log with error
+            sync_log.status = 'failed'
+            sync_log.completed_at = timezone.now()
+            sync_log.message = f'Error: {str(cmd_error)}'
+            sync_log.save()
+            
+            return JsonResponse({'error': f'Command error: {str(cmd_error)}'}, status=500)
+            
     except Exception as e:
         exc_type, exc_value, exc_traceback = sys.exc_info()
         print(f"Exception: {str(e)}")
         print("Traceback:")
         traceback.print_tb(exc_traceback)
+        
+        # Update sync log with error
+        sync_log.status = 'failed'
+        sync_log.completed_at = timezone.now()
+        sync_log.message = f'Error: {str(e)}'
+        sync_log.save()
+        
         return JsonResponse({'error': str(e)}, status=500)
 
 
@@ -240,3 +274,52 @@ def direct_sync(request):
         return render(request, 'sync/direct_sync.html', {
             'instance_type': settings.INSTANCE_TYPE,
         })
+
+
+@require_admin_access
+@require_POST
+def file_sync_content(request):
+    """Export selected content to a file for file-based sync."""
+    # Get selected pages
+    page_ids = request.POST.getlist('page_ids')
+    
+    if not page_ids:
+        # Redirect back with an error message
+        # In a real app, you'd use Django messages framework
+        return redirect('sync:content_form')
+    
+    # Create a new sync log
+    sync_log = SyncLog.objects.create(
+        sync_type='content',
+        source_instance=settings.INSTANCE_TYPE,
+        target_instance='file',
+        status='in_progress'
+    )
+    
+    try:
+        # Call the direct_sync command with selected pages
+        call_command('direct_sync', page_ids=page_ids)
+        
+        # Update sync log
+        sync_log.status = 'completed'
+        sync_log.completed_at = timezone.now()
+        sync_log.message = f'Successfully exported {len(page_ids)} pages to file'
+        sync_log.save()
+        
+        # Add synced model statistics
+        SyncedModel.objects.create(
+            sync_log=sync_log,
+            model_name='Pages',
+            synced_items=len(page_ids),
+            skipped_items=0
+        )
+        
+        return redirect('sync:dashboard')
+    except Exception as e:
+        # Update sync log with error
+        sync_log.status = 'failed'
+        sync_log.completed_at = timezone.now()
+        sync_log.message = f'Error: {str(e)}'
+        sync_log.save()
+        
+        return redirect('sync:dashboard')

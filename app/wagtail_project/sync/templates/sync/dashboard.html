@@ -5,36 +5,43 @@
 
 {% block content %}
   <div class="sync-dashboard">
+    <div class="admin-link">
+      <a href="{% url 'wagtailadmin_home' %}" class="button button-secondary">← Back to Admin</a>
+    </div>
+    
     <h1>Wagtail Sync Dashboard</h1>
     <p>Current instance: <strong>{{ instance_type|upper }}</strong></p>
     
     <div class="actions-panel">
       <h2>Sync Actions</h2>
       
-      {% if instance_type == 'development' %}
-        <div class="action-buttons">
-          <form action="{% url 'sync:trigger' %}" method="post">
-            {% csrf_token %}
-            <input type="hidden" name="sync_type" value="full">
-            <button type="submit" class="button button-primary">Sync Full Database to Production</button>
-          </form>
-          
-          <a href="{% url 'sync:content_form' %}" class="button">Sync Selected Content to Production</a>
-          
-          <form action="{% url 'sync:trigger' %}" method="post">
-            {% csrf_token %}
-            <input type="hidden" name="sync_type" value="media">
-            <button type="submit" class="button">Sync Media Files to Production</button>
-          </form>
-          
-          <a href="{% url 'sync:direct_sync' %}" class="button button-secondary">Use File-Based Sync Method</a>
-        </div>
-      {% else %}
-        <div class="message warning">
-          <p>API-based sync operations can only be initiated from the development instance.</p>
-          <p>However, you can use the <a href="{% url 'sync:direct_sync' %}" class="button button-small">File-Based Sync Method</a> to import or export content.</p>
-        </div>
-      {% endif %}
+      <div class="help-block help-info">
+        <p><strong>Recommended Method:</strong> Use the file-based sync method for more reliable content synchronization.</p>
+        <a href="{% url 'sync:direct_sync' %}" class="button button-primary">File-Based Sync</a>
+      </div>
+      
+      <div class="action-buttons" style="margin-top: 20px;">
+        <a href="{% url 'sync:content_form' %}" class="button">Sync Selected Content</a>
+        
+        {% if instance_type == 'development' %}
+          <div class="help-block help-warning" style="margin-top: 10px;">
+            <p>The following API-based sync methods are less reliable and may cause errors:</p>
+            <div style="margin-top: 10px;">
+              <form action="{% url 'sync:trigger' %}" method="post" style="display: inline-block; margin-right: 10px;">
+                {% csrf_token %}
+                <input type="hidden" name="sync_type" value="full">
+                <button type="submit" class="button button-secondary">Sync Full Database to Production</button>
+              </form>
+              
+              <form action="{% url 'sync:trigger' %}" method="post" style="display: inline-block;">
+                {% csrf_token %}
+                <input type="hidden" name="sync_type" value="media">
+                <button type="submit" class="button button-secondary">Sync Media Files to Production</button>
+              </form>
+            </div>
+          </div>
+        {% endif %}
+      </div>
     </div>
     
     <div class="logs-panel">
@@ -79,12 +86,14 @@
     <div class="help-block help-info">
         <h3>Command Line Sync</h3>
         <p>You can also use the management command to sync content between instances:</p>
-        <pre>python manage.py sync_content</pre>
-        <p>This command will automatically detect the current instance and sync to the other instance.</p>
+        <pre>python manage.py direct_sync</pre>
+        <p>This command will export content to a file that can be imported on the other instance.</p>
+        <p>To import content:</p>
+        <pre>python manage.py direct_sync --import</pre>
         <p>Options:</p>
         <ul>
-            <li><code>--target</code>: Specify the target instance (production or development)</li>
             <li><code>--page-ids</code>: Specify specific page IDs to sync</li>
+            <li><code>--export-file</code>: Specify a custom export file name</li>
         </ul>
     </div>
   </div>
