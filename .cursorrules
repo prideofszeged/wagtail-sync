@@ -1,0 +1,108 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "name": "Django/Wagtail Files",
+      "patterns": ["*.py", "*.html", "*.css", "*.js"],
+      "autoFormatting": true,
+      "linting": true
+    },
+    {
+      "name": "Django Templates",
+      "patterns": ["app/templates/**/*.html"],
+      "autoFormatting": true,
+      "linting": true
+    },
+    {
+      "name": "Django Settings",
+      "patterns": ["app/wagtail_project/settings/*.py"],
+      "autoFormatting": true,
+      "linting": true
+    },
+    {
+      "name": "Static Files",
+      "patterns": ["app/static/**/*"],
+      "autoFormatting": false,
+      "linting": false
+    },
+    {
+      "name": "Media Files",
+      "patterns": ["app/media/**/*"],
+      "autoFormatting": false,
+      "linting": false,
+      "exclude": true
+    },
+    {
+      "name": "Docker Files",
+      "patterns": ["Dockerfile", "docker-compose.yml"],
+      "autoFormatting": true,
+      "linting": true
+    },
+    {
+      "name": "Python Virtual Environment",
+      "patterns": ["venv/**/*", "env/**/*"],
+      "autoFormatting": false,
+      "linting": false,
+      "exclude": true
+    },
+    {
+      "name": "Generated Files",
+      "patterns": ["app/staticfiles/**/*", "**/__pycache__/**/*", "**/*.pyc"],
+      "autoFormatting": false,
+      "linting": false,
+      "exclude": true
+    },
+    {
+      "name": "Database Files",
+      "patterns": ["**/*.sqlite3"],
+      "autoFormatting": false,
+      "linting": false,
+      "exclude": true
+    },
+    {
+      "name": "Documentation",
+      "patterns": ["**/*.md"],
+      "autoFormatting": true,
+      "linting": true
+    }
+  ],
+  "settings": {
+    "python": {
+      "formatter": "black",
+      "linter": "flake8",
+      "formatOnSave": true
+    },
+    "html": {
+      "formatter": "prettier",
+      "formatOnSave": true
+    },
+    "javascript": {
+      "formatter": "prettier",
+      "linter": "eslint",
+      "formatOnSave": true
+    },
+    "css": {
+      "formatter": "prettier",
+      "formatOnSave": true
+    },
+    "yaml": {
+      "formatter": "prettier",
+      "formatOnSave": true
+    },
+    "markdown": {
+      "formatter": "prettier",
+      "formatOnSave": true
+    }
+  },
+  "search": {
+    "excludePatterns": [
+      "**/venv/**",
+      "**/env/**",
+      "**/__pycache__/**",
+      "**/staticfiles/**",
+      "**/media/**",
+      "**/*.pyc",
+      "**/*.sqlite3"
+    ]
+  }
+} 
